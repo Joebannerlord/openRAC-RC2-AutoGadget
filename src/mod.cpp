@@ -540,4 +540,4 @@ void load(openrac::Mod& mod) {
 
 } // namespace
 
-OPENRAC_MOD_CPP("rac2-auto-gadgets", "0.1.4", load)
+OPENRAC_MOD_CPP("rac2-auto-gadgets", "0.1.5", load)

@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "native.hpp"
 
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 #include <array>
 #include <algorithm>
@@ -11,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace {
@@ -18,6 +23,31 @@ namespace {
 using namespace gadgets;
 using Buttons = std::uint8_t;
 using Report = std::array<Buttons, 18>;
+
+#ifdef _WIN32
+using Library = HMODULE;
+constexpr char platform[] = "windows-x86_64";
+#else
+using Library = void*;
+constexpr char platform[] = "linux-x86_64";
+#endif
+
+Library load_library(const std::filesystem::path& path) {
+#ifdef _WIN32
+    return LoadLibraryW(path.c_str());
+#else
+    return dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+#endif
+}
+
+template <typename Function>
+Function exported_function(Library library, const char* name) {
+#ifdef _WIN32
+    return reinterpret_cast<Function>(GetProcAddress(library, name));
+#else
+    return reinterpret_cast<Function>(dlsym(library, name));
+#endif
+}
 
 constexpr Buttons fire_button = 0x20;
 constexpr Buttons r2_button = 0x02;
@@ -563,21 +593,25 @@ void hypnomatic_loses_aim() {
 
 } // namespace
 
+#ifdef _WIN32
 int wmain(int argc, wchar_t** argv) {
-    check(argc == 3 || argc == 4, "expected paths to both packaged DLLs and optional return delay");
-    static const int configured_delay = argc == 4 ? _wtoi(argv[3]) : 0;
-    const auto auto_dll = LoadLibraryW(argv[1]);
-    const auto wrench_dll = LoadLibraryW(argv[2]);
-    check(auto_dll && wrench_dll, "loading the two packaged DLLs");
-    const auto auto_load = reinterpret_cast<openrac_mod_load_fn>(GetProcAddress(auto_dll, OPENRAC_MOD_LOAD));
-    const auto wrench_load = reinterpret_cast<openrac_mod_load_fn>(GetProcAddress(wrench_dll, OPENRAC_MOD_LOAD));
-    const auto query = reinterpret_cast<openrac_mod_query_fn>(GetProcAddress(auto_dll, OPENRAC_MOD_QUERY));
-    check(auto_load && wrench_load && query, "DLL exports");
+#else
+int main(int argc, char** argv) {
+#endif
+    check(argc == 3 || argc == 4, "expected paths to both packaged plugins and optional return delay");
+    static const int configured_delay = argc == 4 ? std::stoi(argv[3]) : 0;
+    const auto auto_plugin = load_library(argv[1]);
+    const auto wrench_plugin = load_library(argv[2]);
+    check(auto_plugin && wrench_plugin, "loading the two packaged plugins");
+    const auto auto_load = exported_function<openrac_mod_load_fn>(auto_plugin, OPENRAC_MOD_LOAD);
+    const auto wrench_load = exported_function<openrac_mod_load_fn>(wrench_plugin, OPENRAC_MOD_LOAD);
+    const auto query = exported_function<openrac_mod_query_fn>(auto_plugin, OPENRAC_MOD_QUERY);
+    check(auto_load && wrench_load && query, "plugin exports");
     openrac_mod_info info{};
     info.size = sizeof info;
     query(&info);
     check(info.api_major == 1 && info.api_minor == 14 && !std::strcmp(info.id, "rac2-auto-gadgets")
-        && !std::strcmp(info.version, "0.1.4"), "Auto Gadgets metadata matches manifest");
+        && !std::strcmp(info.version, "0.1.5"), "Auto Gadgets metadata matches manifest");
 
     const auto scenario = std::filesystem::path(argv[2]).stem().string() + "-" + std::to_string(configured_delay);
     fixture = (std::filesystem::current_path() / "input-order-fixture" / scenario).string();
@@ -595,7 +629,7 @@ int wmain(int argc, wchar_t** argv) {
     api.game = "rac2";
     api.version = "ntsc";
     api.openrac_version = "1.1.0";
-    api.platform = "windows-x86_64";
+    api.platform = platform;
     api.memory = ram.data();
     api.fail = [](openrac_mod*, const char* message) { failure = message; };
     api.log = [](openrac_mod*, int, const char*) {};
@@ -635,7 +669,7 @@ int wmain(int argc, wchar_t** argv) {
     api.version = "ntsc";
     failure.clear();
     check(auto_load(&api, auto_mod) == 0 && wrench_load(&api, wrench_mod) == 0
-        && failure.empty() && pad_hooks.size() == 2 && frame_hooks.size() == 2, "both DLLs load in order");
+        && failure.empty() && pad_hooks.size() == 2 && frame_hooks.size() == 2, "both plugins load in order");
 
     dynamo_and_wrench();
     cancellations();
@@ -643,5 +677,5 @@ int wmain(int argc, wchar_t** argv) {
     thermanator(configured_delay >= 2 && configured_delay <= 5 ? configured_delay : 3);
     hypnomatic();
     hypnomatic_loses_aim();
-    std::cout << "Dynamo, Tractor Beam, Thermanator, Hypnomatic, and real wrench DLL ordering passed.\n";
+    std::cout << "Dynamo, Tractor Beam, Thermanator, Hypnomatic, and real wrench plugin ordering passed.\n";
 }

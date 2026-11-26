@@ -2,7 +2,7 @@
 
 Press Circle at a compatible target to use an owned gadget from your current loadout. The mod briefly equips the gadget, uses the game's own targeting and activation, and restores your previous equipment.
 
-Supports **OpenRAC 1.1.0 on Windows x86-64** with **Ratchet & Clank: Going Commando USA v1.01** (`SCUS-97268`). The plugin uses OpenRAC mod API 1.14.
+Supports **OpenRAC 1.1.0 on Windows and Linux x86-64** with **Ratchet & Clank: Going Commando USA v1.01** (`SCUS-97268`). The plugin uses OpenRAC mod API 1.14.
 
 ## Install
 
@@ -16,7 +16,7 @@ Supports **OpenRAC 1.1.0 on Windows x86-64** with **Ratchet & Clank: Going Comma
 3. Select **Install**, enable Auto Gadgets, and place it first among enabled Going Commando mods. This lets it read physical Circle before Contextual Wrench and Fire maps R2 to Circle.
 4. Start the game. To change how long the Thermanator stays equipped, open **Auto Gadgets** in the **Mods** tab and set **Thermanator return delay** to 2–5 seconds. It defaults to 3 seconds. Changes apply on the next game launch.
 
-To install from a ZIP, download the Windows x86-64 archive from **Releases** and select it in **Mods → Add a mod**. Disable Auto Gadgets in the Mods tab to return to stock controls. [Releases](https://github.com/Joebannerlord/openRAC-RC2-AutoGadget/releases) · [OpenRAC installation guide](https://openrac.dev/mods/docs/install-from-link)
+To install from a ZIP, download the archive for your platform from **Releases** and select it in **Mods → Add a mod**. Disable Auto Gadgets in the Mods tab to return to stock controls. [Releases](https://github.com/Joebannerlord/openRAC-RC2-AutoGadget/releases) · [OpenRAC installation guide](https://openrac.dev/mods/docs/install-from-link)
 
 ## Controls
 
@@ -38,20 +38,29 @@ Circle works normally away from eligible targets. With a weapon drawn, R2 takes 
 | Thermanator | Barlow, Notak, Tabora, Damosel, Yeedil |
 | Hypnomatic | Damosel, Grelbin, Yeedil |
 
-## Build on Windows
+## Build and test
 
-Use an x64 Visual Studio developer prompt with MSVC, CMake 3.24 or newer, and Python 3. The fetcher checks the SDK download against [sdk.lock](sdk.lock).
+Use CMake 3.24 or newer and Python 3. On Windows, build from an x64 Visual Studio developer prompt with MSVC. On Linux, use a C++17 compiler and Ninja. The fetcher checks the SDK download against [sdk.lock](sdk.lock).
 
 ```powershell
 python tools/fetch_sdk.py
-$wrenchDll = python tools/fetch_wrench_test.py
-cmake -S . -B build "-DWRENCH_TEST_DLL:FILEPATH=$wrenchDll"
+$wrenchPlugin = python tools/fetch_wrench_test.py windows-x86_64
+cmake -S . -B build "-DWRENCH_TEST_PLUGIN:FILEPATH=$wrenchPlugin"
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 cmake --build build --config Release --target release_zip
 ```
 
-The optional Wrench DLL is used only by the offline tests. The mod runs by itself. To build without those tests, omit the fetch and the CMake setting. The SDK writes the Windows ZIP to `build/dist/`. Tests use simulated game state and do not require a disc or game installation.
+```sh
+python3 tools/fetch_sdk.py
+wrench_plugin=$(python3 tools/fetch_wrench_test.py linux-x86_64)
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DWRENCH_TEST_PLUGIN:FILEPATH=$wrench_plugin"
+cmake --build build
+ctest --test-dir build --output-on-failure
+cmake --build build --target release_zip
+```
+
+The Wrench plugin is an optional dependency for the offline tests. You can omit its fetch and CMake setting to build Auto Gadgets by itself. The tests use simulated game state, and the SDK writes the platform ZIP to `build/dist/`.
 
 ## Credits and license
 

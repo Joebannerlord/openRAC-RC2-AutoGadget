@@ -2,13 +2,17 @@
   "format": 2,
   "id": "rac2-auto-gadgets",
   "name": "Auto Gadgets",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": "Joebannerlord",
   "description": "Use Circle to temporarily equip the Dynamo, Tractor Beam, Thermanator, or Hypnomatic at eligible targets.",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/Joebannerlord/openRAC-RC2-AutoGadget",
   "api": "1.14",
   "games": { "rac2": ["ntsc"] },
+  "plugin": {
+    "windows-x86_64": "lib/windows-x86_64/rac2_auto_gadgets_015.dll",
+    "linux-x86_64": "lib/linux-x86_64/rac2_auto_gadgets_015.so"
+  },
   "hooks": ["rac2.item.equip"],
   "load": { "before": ["rac2-contextual-wrench"] },
   "settings": [
