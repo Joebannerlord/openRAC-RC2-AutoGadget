@@ -72,19 +72,19 @@ jobs:
           python tools/fetch_sdk.py
       - name: Build and package the mod
         env:
-          PLATFORM: ${{ matrix.platform }}
+          OPENRAC_PACKAGE_PLATFORM: ${{ matrix.platform }}
         run: |
-          wrench_plugin=$(python tools/fetch_wrench_test.py "$PLATFORM")
+          wrench_plugin=$(python tools/fetch_wrench_test.py "$OPENRAC_PACKAGE_PLATFORM")
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DWRENCH_TEST_PLUGIN:FILEPATH="$wrench_plugin"
           cmake --build build
           ctest --test-dir build --output-on-failure
           cmake --build build --target release_zip
       - name: Validate the platform archive
         env:
-          PLATFORM: ${{ matrix.platform }}
+          OPENRAC_PACKAGE_PLATFORM: ${{ matrix.platform }}
         run: |
           cd build/dist
-          sha256sum *-"$PLATFORM".zip > SHA256SUMS
+          sha256sum *-"$OPENRAC_PACKAGE_PLATFORM".zip > SHA256SUMS
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.platform }}
